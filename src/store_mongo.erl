@@ -1,4 +1,4 @@
--module(collector_mongo).
+-module(store_mongo).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
 -behaviour(gen_server).
@@ -7,7 +7,7 @@
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
-%% puoblic
+%% public
 -export([record/6, get_series/4, get_events/0]).
 
 -record(state, {}).

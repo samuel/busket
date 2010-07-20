@@ -25,4 +25,5 @@ start_link() ->
 
 init([]) ->
     Busket = ?CHILD(busket, worker),
-    {ok, { {one_for_one, 5, 10}, [Busket]} }.
+    Interface = ?CHILD(interface_udp, worker),
+    {ok, { {one_for_one, 5, 10}, [Busket, Interface]} }.

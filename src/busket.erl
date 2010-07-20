@@ -3,15 +3,17 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, start/0]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
+% public
+-export([record/3]).
 
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
 -define(GAUGE_TYPE, 103).
--define(DEFAULT_INTERVAL, 60000). % ms
+-define(DEFAULT_INTERVAL, 2000).%60000). % ms
 -define(INTERVALS, [
     {5*60, 576},     % Every 5 minutes for 48 hours
     {30*60, 432},    % Every 30 minutes for 9 days
@@ -19,40 +21,35 @@
     {24*60*60, 450}  % Every day for 450 days
 ]).
 
--record(state, {endpoints, last_ts, events, last_values, collector}).
+-record(state, {last_ts, events, last_values, store}).
 
 start_link() ->
-    gen_server:start_link(?MODULE, {self()}, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, {self()}, []).
 
-start() ->
-    gen_server:start(?MODULE, {self()}, []).
+record(Type, Event, Value) ->
+    gen_server:cast(?MODULE, {record, Type, Event, Value}).
 
 %% gen_server callbacks
 
 init({_PidMaster}) ->
+	process_flag(trap_exit, true),
     timer:start(),
-    UDPEndPoint = udp_endpoint:start(),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
-    {ok, Collector} = collector_mongo:start(),
+    {ok, Store} = store:start_link(store_debug),
     {ok, #state{
-            endpoints = [UDPEndPoint],
             last_ts = erlang:now(),
             events = dict:new(),
             last_values = dict:new(),
-            collector = Collector
+            store = Store
         }}.
 
 handle_call(Call, _From, State) ->
     io:format("UNANDLED handle_call ~p ~p~n", [Call, State]),
     {reply, ok, State}.
 
-handle_info({_EndPoint, event, {EventType, Name, Value}}, #state{events=Events} = State) ->
-    NewState = State#state{events=dict:append({Name, EventType}, Value, Events)},
-    {noreply, NewState};
 handle_info(collection_timer, State) ->
     NextTS = erlang:now(),
     Interval = timer:now_diff(NextTS, State#state.last_ts) / 1000000,
-    io:format("~p~n", [Interval]),
     {NewState1, _, _} = dict:fold(fun process_events/3, {State, Interval, NextTS}, State#state.events),
     NewState2 = NewState1#state{events=dict:new(), last_ts=NextTS},
     % NewState3 = aggregate(get_unix_timestamp(NextTS), NewState2),
@@ -68,6 +65,9 @@ terminate(Reason, _State) ->
     io:format("~p stopping: ~p~n", [?MODULE, Reason]),
     ok.
 
+handle_cast({record, Type, Name, Value}, #state{events=Events} = State) ->
+    NewState = State#state{events=dict:append({Name, Type}, Value, Events)},
+    {noreply, NewState};
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
@@ -92,7 +92,7 @@ process_events({Name, EventType}, Events, {State, Interval, TS}) ->
     {Avg, Min, Max, Value} = aggregate_events(EventType, Events, Interval, LastValue),
     NewState = State#state{last_values=dict:store({Name, EventType}, Value, State#state.last_values)},
     % io:format("~p ~p ~p ~p ~p ~p~n", [get_unix_timestamp(TS), Name, Avg, Min, Max, Value]),
-    NewState#state.collector ! {record, get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000)},
+    NewState#state.store ! {record, get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000)},
     {NewState, Interval, TS}.
 
 aggregate_events(?ABSOLUTE_TYPE, Events, Interval, _LastValue) ->

@@ -1,4 +1,4 @@
--module(udp_endpoint).
+-module(interface_udp).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
 -behaviour(gen_server).
@@ -67,5 +67,5 @@ handle_packet(State, <<>>) ->
 handle_packet(State, Packet) ->
     <<TypeChar:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = Packet,
     {Name, Rest} = split_binary(NameAndRest, NameLen),
-    State#state.pidparent ! {self(), event, {TypeChar, Name, Value}},
+    busket:record(TypeChar, Name, Value),
     handle_packet(State, Rest).

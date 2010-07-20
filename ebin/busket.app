@@ -6,8 +6,10 @@
              busket_app,
              busket_sup,
              busket,
-             udp_endpoint,
-             collector_mongo
+             interface_udp,
+             store,
+             store_debug,
+             store_mongo
             ]},
   {registered, []},
   {applications, [
