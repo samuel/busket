@@ -64,8 +64,10 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 handle_packet(State, <<>>) ->
     {ok, State};
-handle_packet(State, Packet) ->
-    <<TypeChar:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = Packet,
+handle_packet(State, <<TypeChar:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = _Packet) ->
     {Name, Rest} = split_binary(NameAndRest, NameLen),
     busket:record(TypeChar, Name, Value),
-    handle_packet(State, Rest).
+    handle_packet(State, Rest);
+handle_packet(State, _) ->
+    % TODO: Log the invalid packet
+    {ok, State}.

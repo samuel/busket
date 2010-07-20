@@ -15,11 +15,12 @@ record(Timestamp, Event, Avg, Min, Max, Resolution) ->
         {"min", Min},
         {"max", Max}
     ]),
-    emongo:update(mongo_busket, "events", [{"event", Event}], [{"last_seen", Timestamp}, {"last_value", Avg}], true).
+    % io:format("MONGO ~p ~p ~p ~p ~p ~p~n", [Timestamp, Event, Avg, Min, Max, Resolution]),
+    emongo:update(mongo_busket, "events", [{"name", Event}], [{"$set", [{"last_seen", Timestamp}, {"last_value", Avg}]}], true).
 
 get_series(Event, StartTS, EndTS, Resolution) ->
     CollectionName = string:concat("series_", integer_to_list(Resolution)),
-    emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lte, EndTS}]}], [{orderby, "ts"}]).
+    emongo:find(mongo_busket, CollectionName, [{"name", Event}, {"ts", [{gte, StartTS}, {lte, EndTS}]}], [{orderby, "ts"}]).
 
 get_events() ->
     emongo:find(mongo_busket, "events").
