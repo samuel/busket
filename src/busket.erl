@@ -11,7 +11,7 @@
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
 -define(GAUGE_TYPE, 103).
--define(DEFAULT_INTERVAL, 1000). %60000). % ms
+-define(DEFAULT_INTERVAL, 60000). % ms
 -define(INTERVALS, [
     {5*60, 576},     % Every 5 minutes for 48 hours
     {30*60, 432},    % Every 30 minutes for 9 days
