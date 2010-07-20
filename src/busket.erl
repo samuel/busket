@@ -35,7 +35,7 @@ init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
-    {ok, Store} = store:start_link(store_debug),
+    {ok, Store} = store:start_link(store_mongo),
     {ok, #state{
             last_ts = erlang:now(),
             events = dict:new(),
