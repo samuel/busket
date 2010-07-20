@@ -10,7 +10,7 @@ record(Timestamp, Event, Avg, Min, Max, Resolution) ->
     CollectionName = string:concat("series_", integer_to_list(Resolution)),
     emongo:insert(mongo_busket, CollectionName, [
         {"ts", Timestamp},
-        {"name", Event},
+        {"event", Event},
         {"avg", Avg},
         {"min", Min},
         {"max", Max}
@@ -20,7 +20,7 @@ record(Timestamp, Event, Avg, Min, Max, Resolution) ->
 
 get_series(Event, StartTS, EndTS, Resolution) ->
     CollectionName = string:concat("series_", integer_to_list(Resolution)),
-    emongo:find(mongo_busket, CollectionName, [{"name", Event}, {"ts", [{gte, StartTS}, {lte, EndTS}]}], [{orderby, "ts"}]).
+    emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lte, EndTS}]}], [{orderby, "ts"}]).
 
 get_events() ->
     emongo:find(mongo_busket, "events").
