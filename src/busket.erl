@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 % public
--export([record/3]).
+-export([record/3, record/1]).
 
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
@@ -27,7 +27,10 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, {self()}, []).
 
 record(Type, Event, Value) ->
-    gen_server:cast(?MODULE, {record, Type, Event, Value}).
+    record([{Type, Event, Value}]).
+
+record(Events) ->
+    gen_server:cast(?MODULE, {record, Events}).
 
 %% gen_server callbacks
 
@@ -65,8 +68,8 @@ terminate(Reason, _State) ->
     io:format("~p stopping: ~p~n", [?MODULE, Reason]),
     ok.
 
-handle_cast({record, Type, Name, Value}, #state{events=Events} = State) ->
-    NewState = State#state{events=dict:append({Name, Type}, Value, Events)},
+handle_cast({record, NewEvents}, State) ->
+    NewState = record_events(NewEvents, State),
     {noreply, NewState};
 handle_cast(stop, State) ->
     {stop, normal, State}.
@@ -81,6 +84,12 @@ code_change(_OldVsn, State, _Extra) ->
 %     State.
 % aggregate([{Resolution,Limit}|Intervals], TS, State) ->
 %     void.
+
+record_events([], State) ->
+    State;
+record_events([{Type, Name, Value}|Rest], #state{events=Events} = State) ->
+    NewState = State#state{events=dict:append({Name, Type}, Value, Events)},
+    record_events(Rest, NewState).
 
 process_events({Name, EventType}, Events, {State, Interval, TS}) ->
     LastValue = case dict:find({Name, EventType}, State#state.last_values) of

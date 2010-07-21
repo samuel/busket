@@ -44,8 +44,9 @@ handle_call(Call, _From, State) ->
     {reply, ok, State, 0}.
 
 handle_info({udp, _Socket, _IP, _InPortNo, Packet}, State) ->
-    {ok, NewState} = handle_packet(State, Packet),
-    {noreply, NewState};
+    Events = parse_packet(Packet),
+    busket:record(Events),
+    {noreply, State};
 handle_info(Info,  State) ->
     io:format("UNHANDLED handle_info ~p ~p~n", [Info, State]),
     {noreply, State}.
@@ -62,12 +63,15 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%%%%%%%%%
 
-handle_packet(State, <<>>) ->
-    {ok, State};
-handle_packet(State, <<TypeChar:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = _Packet) ->
+parse_packet(Packet) ->
+    parse_packet(Packet, []).
+parse_packet(<<>>, Events) ->
+    Events;
+parse_packet(<<Type:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = _Packet, Events) ->
     {Name, Rest} = split_binary(NameAndRest, NameLen),
-    busket:record(TypeChar, Name, Value),
-    handle_packet(State, Rest);
-handle_packet(State, _) ->
+    % Maintain order of events
+    Events2 = parse_packet(Rest, Events),
+    [{Type, Name, Value}|Events2];
+parse_packet(_, Events) ->
     % TODO: Log the invalid packet
-    {ok, State}.
+    Events.
