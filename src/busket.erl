@@ -65,26 +65,20 @@ handle_info(Info, State) ->
     io:format("UNHANDLED handle_info ~p ~p~n", [Info, State]),
     {noreply, State}.
 
-terminate(Reason, _State) ->
-    io:format("~p stopping: ~p~n", [?MODULE, Reason]),
-    ok.
-
 handle_cast({record, NewEvents}, State) ->
     NewState = record_events(NewEvents, State),
     {noreply, NewState};
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
+terminate(Reason, _State) ->
+    io:format("~p stopping: ~p~n", [?MODULE, Reason]),
+    ok.
+
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%
-
-% aggregate(TS, State) ->
-%     aggregate(?INTERVALS, TS, State),
-%     State.
-% aggregate([{Resolution,Limit}|Intervals], TS, State) ->
-%     void.
 
 record_events([], State) ->
     State;

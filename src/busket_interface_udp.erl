@@ -51,13 +51,13 @@ handle_info(Info,  State) ->
     io:format("UNHANDLED handle_info ~p ~p~n", [Info, State]),
     {noreply, State}.
 
+handle_cast(stop, State) ->
+    {stop, normal, State}.
+
 terminate(Reason, #state{socket=Socket}) ->
     io:format("~p stopping: ~p~n", [?MODULE, Reason]),
     gen_udp:close(Socket),
     ok.
-
-handle_cast(stop, State) ->
-    {stop, normal, State}.
 
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
