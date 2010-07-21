@@ -87,39 +87,52 @@ code_change(_OldVsn, State, _Extra) ->
 
 record_events([], State) ->
     State;
-record_events([{Type, Name, Value}|Rest], #state{events=Events} = State) ->
-    NewState = State#state{events=dict:append({Name, Type}, Value, Events)},
+record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+    {Sum, Min, Max, Count} = case dict:find({Name, ?GAUGE_TYPE}, Events) of
+        {ok, {OldSum, OldMin, OldMax, OldCount}} ->
+            {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), OldCount+1};
+        error ->
+            {Value, Value, Value, 1}
+    end,
+    NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count}, Events),
+    NewState = State#state{events=NewEvents},
+    record_events(Rest, NewState);
+record_events([{?COUNTER_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+    NewEvents = dict:store({Name, ?COUNTER_TYPE}, Value, Events),
+    NewState = State#state{events=NewEvents},
+    record_events(Rest, NewState);
+record_events([{?ABSOLUTE_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+    NewEvents = dict:update_counter({Name, ?ABSOLUTE_TYPE}, Value, Events),
+    NewState = State#state{events=NewEvents},
     record_events(Rest, NewState).
 
-process_events({Name, EventType}, Events, {State, Interval, TS}) ->
+process_events({Name, EventType}, Counters, {State, Interval, TS}) ->
     LastValue = case dict:find({Name, EventType}, State#state.last_values) of
         {ok, LV} ->
             LV;
         error ->
             nil
     end,
-    {Avg, Min, Max, Value} = aggregate_events(EventType, Events, Interval, LastValue),
+    {Avg, Min, Max, Value} = aggregate_events(EventType, Counters, Interval, LastValue),
     NewState = State#state{last_values=dict:store({Name, EventType}, Value, State#state.last_values)},
     % io:format("~p ~p ~p ~p ~p ~p~n", [get_unix_timestamp(TS), Name, Avg, Min, Max, Value]),
-    NewState#state.store ! {record, get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000)},
+    case Avg of
+        nil ->
+            ok;
+        _ ->
+            NewState#state.store ! {record, get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000)}
+    end,
     {NewState, Interval, TS}.
 
-aggregate_events(?ABSOLUTE_TYPE, Events, Interval, _LastValue) ->
-    Sum = lists:sum(Events),
+aggregate_events(?ABSOLUTE_TYPE, Sum, Interval, _LastValue) ->
     Avg = Sum/Interval,
     {Avg, Avg, Avg, Sum};
-aggregate_events(?COUNTER_TYPE, Events, _Interval, nil) ->
-    Value = lists:last(Events),
+aggregate_events(?COUNTER_TYPE, Value, _Interval, nil) ->
     {nil, nil, nil, Value};
-aggregate_events(?COUNTER_TYPE, Events, Interval, LastValue) ->
-    Value = lists:last(Events),
+aggregate_events(?COUNTER_TYPE, Value, Interval, LastValue) ->
     Avg = (Value-LastValue)/Interval,
     {Avg, Avg, Avg, Value};
-aggregate_events(?GAUGE_TYPE, [Value|Events], _Interval, _LastValue) ->
-    aggregate_events_gauge(Events, Value, Value, Value, 1).
-aggregate_events_gauge([Value|Events], Sum, Min, Max, Count) ->
-    aggregate_events_gauge(Events, Sum+Value, erlang:min(Value, Min), erlang:max(Value, Max), Count+1);
-aggregate_events_gauge([], Sum, Min, Max, Count) ->
+aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count}, _Interval, _LastValue) ->
     {Sum/Count, Min, Max, Sum}.
 
 time_to_next_interval(Interval) ->
