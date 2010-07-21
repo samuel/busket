@@ -1,4 +1,4 @@
--module(store_debug).
+-module(busket_store_debug).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
 -export([init/0, record/6, get_series/4, get_events/0, cleanup/2]).

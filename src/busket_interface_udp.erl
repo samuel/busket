@@ -1,4 +1,4 @@
--module(interface_udp).
+-module(busket_interface_udp).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
 -behaviour(gen_server).

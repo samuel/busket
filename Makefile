@@ -15,5 +15,8 @@ clean:
 distclean: clean
 	@./rebar delete-deps
 
+release: clean all
+	@./rebar generate
+
 docs:
 	@erl -noshell -run edoc_run application '$(APP)' '"."' '[]'

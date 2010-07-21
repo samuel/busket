@@ -11,6 +11,7 @@
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, Args), {I, {I, start_link, Args}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -24,6 +25,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    Store = ?CHILD(busket_store, worker, [busket_store_mongo]),
     Busket = ?CHILD(busket, worker),
-    Interface = ?CHILD(interface_udp, worker),
-    {ok, { {one_for_one, 5, 10}, [Busket, Interface]} }.
+    Interface = ?CHILD(busket_interface_udp, worker),
+    {ok, { {one_for_one, 5, 10}, [Store, Busket, Interface]} }.

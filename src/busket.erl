@@ -8,13 +8,15 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 % public
--export([record/3, record/1]).
+-export([record/3, record/1, cleanup/0]).
 
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
 -define(GAUGE_TYPE, 103).
+-define(CLEANUP_INTERVAL, 30*60*1000). % ms
 -define(DEFAULT_INTERVAL, 60000). % ms
 -define(INTERVALS, [
+    {60, 1440},      % Every minute for 24 hours
     {5*60, 576},     % Every 5 minutes for 48 hours
     {30*60, 432},    % Every 30 minutes for 9 days
     {60*60, 1080},   % Every 1 hours for 45 days
@@ -37,13 +39,12 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
+    {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
-    {ok, Store} = store:start_link(store_mongo),
     {ok, #state{
             last_ts = erlang:now(),
             events = dict:new(),
-            last_values = dict:new(),
-            store = Store
+            last_values = dict:new()
         }}.
 
 handle_call(Call, _From, State) ->
@@ -120,7 +121,7 @@ process_events({Name, EventType}, Counters, {State, Interval, TS}) ->
         nil ->
             ok;
         _ ->
-            NewState#state.store ! {record, get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000)}
+            busket_store:record(get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000))
     end,
     {NewState, Interval, TS}.
 
@@ -134,6 +135,14 @@ aggregate_events(?COUNTER_TYPE, Value, Interval, LastValue) ->
     {Avg, Avg, Avg, Value};
 aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count}, _Interval, _LastValue) ->
     {Sum/Count, Min, Max, Sum}.
+
+cleanup() ->
+    cleanup(?INTERVALS).
+cleanup([]) ->
+    ok;
+cleanup([{Resolution, Limit}|Intervals]) ->
+    busket_store:cleanup(Resolution, Limit),
+    cleanup(Intervals).
 
 time_to_next_interval(Interval) ->
     {Megaseconds, Seconds, Microseconds} = erlang:now(),
