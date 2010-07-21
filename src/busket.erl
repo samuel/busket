@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 % public
--export([record/3, record/1, cleanup/0]).
+-export([record/3, record/1, cleanup/0, get_unix_timestamp/0, get_unix_timestamp/1]).
 
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
@@ -56,7 +56,6 @@ handle_info(collection_timer, State) ->
     Interval = timer:now_diff(NextTS, State#state.last_ts) / 1000000,
     {NewState1, _, _} = dict:fold(fun process_events/3, {State, Interval, NextTS}, State#state.events),
     NewState2 = NewState1#state{events=dict:new(), last_ts=NextTS},
-    % NewState3 = aggregate(get_unix_timestamp(NextTS), NewState2),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {noreply, NewState2};
 % handle_info(aggregate_timer, State) ->
@@ -110,7 +109,6 @@ process_events({Name, EventType}, Counters, {State, Interval, TS}) ->
     end,
     {Avg, Min, Max, Value} = aggregate_events(EventType, Counters, Interval, LastValue),
     NewState = State#state{last_values=dict:store({Name, EventType}, Value, State#state.last_values)},
-    % io:format("~p ~p ~p ~p ~p ~p~n", [get_unix_timestamp(TS), Name, Avg, Min, Max, Value]),
     case Avg of
         nil ->
             ok;
@@ -147,6 +145,8 @@ time_to_next_interval(Interval) ->
     end,
     MS2.
 
+get_unix_timestamp() ->
+    get_unix_timestamp(erlang:now()).
 get_unix_timestamp(TS) ->
     calendar:datetime_to_gregorian_seconds( calendar:now_to_universal_time(TS) ) -
         calendar:datetime_to_gregorian_seconds( {{1970,1,1},{0,0,0}} ).
