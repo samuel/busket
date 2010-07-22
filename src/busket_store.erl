@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 %% public
--export([record/6, get_series/4, get_events/0, cleanup/2]).
+-export([record/6, get_series/4, get_series_info/1, get_events/0, cleanup/2]).
 
 -record(state, {module}).
 
@@ -23,6 +23,9 @@ record(Timestamp, Event, Avg, Min, Max, Resolution) ->
 
 get_series(Event, StartTS, EndTS, Resolution) ->
 	gen_server:call(?MODULE, {get_series, Event, StartTS, EndTS, Resolution}, infinity).
+
+get_series_info(Resolution) ->
+    gen_server:call(?MODULE, {get_series_info, Resolution}, infinity).
 
 get_events() ->
 	gen_server:call(?MODULE, get_events, infinity).
@@ -40,6 +43,9 @@ handle_call({record, Timestamp, Event, Avg, Min, Max, Resolution}, _From, #state
     {reply, ok, State};
 handle_call({get_series, Event, StartTS, EndTS, Resolution}, _From, #state{module=Module} = State) ->
     Res = Module:get_series(Event, StartTS, EndTS, Resolution),
+    {reply, Res, State};
+handle_call({get_series_info, Resolution}, _From, #state{module=Module} = State) ->
+    Res = Module:get_series_info(Resolution),
     {reply, Res, State};
 handle_call(get_events, _From, #state{module=Module} = State) ->
     Res = Module:get_events(),

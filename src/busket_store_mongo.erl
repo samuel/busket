@@ -1,7 +1,7 @@
 -module(busket_store_mongo).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
--export([init/0, record/6, get_series/4, get_events/0, cleanup/2]).
+-export([init/0, record/6, get_series/4, get_series_info/1, get_last_update_tstamp/1, get_events/0, cleanup/2]).
 
 init() ->
     emongo:add_pool(mongo_busket, "localhost", 27017, "busket", 1).
@@ -24,6 +24,15 @@ get_series(Event, StartTS, EndTS, Resolution) ->
 
 get_events() ->
     emongo:find(mongo_busket, "events").
+
+get_series_info(Resolution) ->
+    case emongo:find(mongo_busket, "series", [{"resolution", Resolution}], [{limit, 1}]) of
+        [Info] -> Info;
+        [] -> []
+    end.
+
+get_last_update_tstamp(Resolution) ->
+    proplists:get_value(<<"last_update">>, get_series_info(Resolution), 0).
 
 cleanup(Resolution, Limit) ->
     CollectionName = collection_name(Resolution),
