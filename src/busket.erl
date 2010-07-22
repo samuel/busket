@@ -39,6 +39,7 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
+    start_rollup_timers(?INTERVALS),
     {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {ok, #state{
@@ -46,6 +47,10 @@ init({_PidMaster}) ->
             events = dict:new(),
             last_values = dict:new()
         }}.
+
+start_rollup_timers([{_Resolution, _}|Intervals]) ->
+    % TODO
+    start_rollup_timers(Intervals).
 
 handle_call(Call, _From, State) ->
     io:format("UNANDLED handle_call ~p ~p~n", [Call, State]),
