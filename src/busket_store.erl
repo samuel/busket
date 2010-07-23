@@ -19,16 +19,16 @@ start(StoreModule) ->
     gen_server:start({local, ?MODULE}, ?MODULE, {self(), StoreModule}, []).
 
 record(Timestamp, Event, Avg, Min, Max, Resolution) ->
-	gen_server:call(?MODULE, {record, Timestamp, Event, Avg, Min, Max, Resolution}, infinity).
+	gen_server:call(?MODULE, {record, Timestamp, Event, Avg, Min, Max, Resolution}).
 
 get_series(Event, StartTS, EndTS, Resolution) ->
-	gen_server:call(?MODULE, {get_series, Event, StartTS, EndTS, Resolution}, infinity).
+	gen_server:call(?MODULE, {get_series, Event, StartTS, EndTS, Resolution}).
 
 get_series_info(Resolution) ->
-    gen_server:call(?MODULE, {get_series_info, Resolution}, infinity).
+    gen_server:call(?MODULE, {get_series_info, Resolution}).
 
 get_events() ->
-	gen_server:call(?MODULE, get_events, infinity).
+	gen_server:call(?MODULE, get_events).
 
 cleanup(Resolution, Limit) ->
     gen_server:call(?MODULE, {cleanup, Resolution, Limit}).
@@ -52,7 +52,7 @@ handle_call(get_events, _From, #state{module=Module} = State) ->
     {reply, Res, State};
 handle_call({cleanup, Resolution, Limit}, _From, #state{module=Module} = State) ->
     Module:cleanup(Resolution, Limit),
-    {noreply, ok, State};
+    {reply, ok, State};
 handle_call(Call, _From, State) ->
     io:format("UNANDLED handle_call ~p ~p~n", [Call, State]),
     {reply, ok, State}.
