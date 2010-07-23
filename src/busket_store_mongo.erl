@@ -4,7 +4,7 @@
 -export([init/0, record/6, get_series/4, get_series_info/1, get_last_update_tstamp/1, get_events/0, cleanup/2]).
 
 init() ->
-    emongo:add_pool(mongo_busket, "localhost", 27017, "busket", 1).
+    ok.
 
 record(Timestamp, Event, Avg, Min, Max, Resolution) ->
     CollectionName = collection_name(Resolution),

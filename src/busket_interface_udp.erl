@@ -10,15 +10,15 @@
 
 -define(DEFAULT_PORT, 5252).
 
--record(state, {pidparent, socket=not_bound}).
+-record(state, {pidparent, socket=not_bound, port}).
 
 start() ->
-    start(?DEFAULT_PORT).
+    start(undefined).
 start(Port) ->
     gen_server:start(?MODULE, {self(), Port}, []).
 
 start_link() ->
-    start_link(?DEFAULT_PORT).
+    start_link(undefined).
 start_link(Port) ->
     gen_server:start_link(?MODULE, {self(), Port}, []).
 
@@ -30,10 +30,24 @@ stop(Pid) when is_pid(Pid) ->
 %%%------------------------------------------------------------------------
 
 init({PidParent, Port}) ->
-    case gen_udp:open(Port, [binary]) of
+    Port2 = case Port of
+        undefined ->
+            case application:get_env(busket, udp_port) of
+        		undefined ->
+        			?DEFAULT_PORT;
+        		{ok, P} ->
+        		    P
+    		end;
+    	_ ->
+    	    Port
+	end,
+
+    io:format("[busket_interface_udp] Listening on port ~p~n", [Port2]),
+
+    case gen_udp:open(Port2, [binary]) of
         {ok, Socket} ->
             % State#state.pidparent ! {self(), bound},
-            State = #state{pidparent=PidParent, socket=Socket}
+            State = #state{pidparent=PidParent, socket=Socket, port=Port2}
         % {error, econnrefused} ->
         %     {noreply, State, ?RECONNECT_DELAY}
     end,
