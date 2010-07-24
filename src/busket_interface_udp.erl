@@ -33,14 +33,14 @@ init({PidParent, Port}) ->
     Port2 = case Port of
         undefined ->
             case application:get_env(busket, udp_port) of
-        		undefined ->
-        			?DEFAULT_PORT;
-        		{ok, P} ->
-        		    P
-    		end;
-    	_ ->
-    	    Port
-	end,
+                undefined ->
+                    ?DEFAULT_PORT;
+                {ok, P} ->
+                    P
+            end;
+        _ ->
+            Port
+    end,
 
     io:format("[busket_interface_udp] Listening on port ~p~n", [Port2]),
 

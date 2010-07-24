@@ -1,4 +1,5 @@
 *.beam
 deps/
 rel/busket
+erl_crash.dump
 

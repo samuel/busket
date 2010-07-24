@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 % public
--export([record/3, record/1, cleanup/0, get_unix_timestamp/0, get_unix_timestamp/1]).
+-export([record/3, record/1, cleanup/0, rollup/0, get_unix_timestamp/0, get_unix_timestamp/1]).
 
 -define(ABSOLUTE_TYPE, 97).
 -define(COUNTER_TYPE, 99).
@@ -39,18 +39,14 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
-    % start_rollup_timers(?INTERVALS),
     {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
+    {ok, _} = timer:apply_interval(element(1, lists:nth(2, ?INTERVALS)), ?MODULE, rollup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {ok, #state{
             last_ts = erlang:now(),
             events = dict:new(),
             last_values = dict:new()
         }}.
-
-% start_rollup_timers([{_Resolution, _}|Intervals]) ->
-%     % TODO
-%     start_rollup_timers(Intervals).
 
 handle_call(Call, _From, State) ->
     io:format("UNANDLED handle_call ~p ~p~n", [Call, State]),
@@ -140,6 +136,16 @@ cleanup([]) ->
 cleanup([{Resolution, Limit}|Intervals]) ->
     busket_store:cleanup(Resolution, Limit),
     cleanup(Intervals).
+
+rollup() ->
+    rollup(?INTERVALS).
+rollup([]) ->
+    ok;
+rollup([{Resolution, _}|Intervals]) ->
+    LastUpdate = busket_store:get_last_update_time(Resolution),
+    % TODO
+    % busket_store:last_
+    rollup(Intervals).
 
 time_to_next_interval(Interval) ->
     {Megaseconds, Seconds, Microseconds} = erlang:now(),

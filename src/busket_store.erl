@@ -8,7 +8,8 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 %% public
--export([record/6, get_series/4, get_series_info/1, get_events/0, cleanup/2]).
+-export([record/6, get_series/4, get_series_info/1, get_events/0,
+    get_last_update_time/1, set_last_update_time/2, cleanup/2]).
 
 -record(state, {module}).
 
@@ -30,6 +31,12 @@ get_series_info(Resolution) ->
 get_events() ->
 	gen_server:call(?MODULE, get_events).
 
+set_last_update_time(Resolution, Timestamp) ->
+    gen_server:call(?MODULE, {set_last_update_time, Resolution, Timestamp}).
+
+get_last_update_time(Resolution) ->
+    gen_server:call(?MODULE, {get_last_update_time, Resolution}).
+
 cleanup(Resolution, Limit) ->
     gen_server:call(?MODULE, {cleanup, Resolution, Limit}).
 
@@ -49,6 +56,12 @@ handle_call({get_series_info, Resolution}, _From, #state{module=Module} = State)
     {reply, Res, State};
 handle_call(get_events, _From, #state{module=Module} = State) ->
     Res = Module:get_events(),
+    {reply, Res, State};
+handle_call({get_last_update_time, Resolution}, _From, #state{module=Module} = State) ->
+    Res = Module:get_last_update_time(Resolution),
+    {reply, Res, State};
+handle_call({set_last_update_time, Resolution, Timestamp}, _From, #state{module=Module} = State) ->
+    Res = Module:set_last_update_time(Resolution, Timestamp),
     {reply, Res, State};
 handle_call({cleanup, Resolution, Limit}, _From, #state{module=Module} = State) ->
     Module:cleanup(Resolution, Limit),

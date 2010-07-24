@@ -10,13 +10,19 @@
              busket_store_debug,
              busket_store_mongo,
              busket_interface_udp
+             % busket_web,
+             % busket_web_sup,
+             % busket_web_resource
             ]},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib,
                   sasl,
+                  crypto,
                   emongo
+                  % mochiweb,
+                  % webmachine
                  ]},
   {mod, { busket_app, []}},
   {env, []}

@@ -25,7 +25,14 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Store = ?CHILD(busket_store, worker, [busket_store_mongo]),
+    StoreModule = case application:get_env(busket, store_module) of
+        undefined ->
+            busket_store_debug;
+        {ok, SM} ->
+            SM
+    end,
+
+    Store = ?CHILD(busket_store, worker, [StoreModule]),
     Busket = ?CHILD(busket, worker),
     Interface = ?CHILD(busket_interface_udp, worker),
     {ok, { {one_for_one, 5, 10}, [Store, Busket, Interface]} }.
