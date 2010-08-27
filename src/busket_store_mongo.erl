@@ -22,7 +22,7 @@ record(Timestamp, Event, Avg, Min, Max, Resolution) ->
 
 get_series(Event, StartTS, EndTS, Resolution) ->
     CollectionName = collection_name(Resolution),
-    emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lte, EndTS}]}], [{orderby, "ts"}]).
+    emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lt, EndTS}]}], [{orderby, {"ts", asc}}]).
 
 get_events() ->
     emongo:find(mongo_busket, "events").

@@ -138,18 +138,55 @@ cleanup([{Resolution, Limit}|Intervals]) ->
     cleanup(Intervals).
 
 rollup() ->
-    rollup(?INTERVALS).
-rollup([]) ->
+    [{Resolution, Limit}|Intervals] = ?INTERVALS,
+    rollup(Intervals, {Resolution, Limit}).
+rollup([], _) ->
     ok;
-rollup([{Resolution, _}|Intervals]) ->
+rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
     LastUpdate = busket_store:get_last_update_time(Resolution),
+    LastStep = LastUpdate div Resolution,
+    CurrentStep = get_unix_timestamp() div Resolution,
+    if 
+        CurrentStep > LastStep ->
+            StartTS = CurrentStep * Resolution,
+            EndTS = StartTS + Limit,
+            Events = busket_store:get_events(CurrentStep * Resolution),
+            rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution);
+        true ->
+            ok
+    end,
     % TODO
     % busket_store:last_
-    rollup(Intervals).
+    rollup(Intervals, {Resolution, Limit}).
+
+rollup_aggregate([], _, _, _, _) ->
+    ok;
+rollup_aggregate(Event, StartTS, EndTS, Resolution, LastResolution) ->
+    Series = busket_store:get_series(Event, StartTS, EndTS, LastResolution),
+    {Sum, Count, Min, Max} = aggregate(Series),
+    Average = Sum / Count,
+    busket_store:record(EndTS, Event, Average, Min, Max, Resolution).
+
+aggregate(Series) ->
+    aggregate(Series, 0, 0, null, null).
+aggregate([], Sum, Count, Min, Max) ->
+    {Sum, Count, Min, Max};
+aggregate([Event|Series], Sum, Count, Min, Max) ->
+    Sum2 = Sum + proplists:get_value(<<"avg">>, Event),
+    Min2 = erlang:min(Min, proplists:get_value(<<"min">>, Event)),
+    OldMax = proplists:get_value(<<"max">>, Event),
+    Max2 = if
+        Max == null ->
+            OldMax;
+        true ->
+            erlang:min(Max, proplists:get_value(<<"max">>, Event))
+    end,
+    Count2 = Count + 1,
+    aggregate(Series, Sum2, Count2, Min2, Max2).
 
 time_to_next_interval(Interval) ->
     {Megaseconds, Seconds, Microseconds} = erlang:now(),
-    MS = Interval - (erlang:round(timer:seconds(Megaseconds*1000000+Seconds)+Microseconds/1000) rem Interval),
+    MS = Interval - ((timer:seconds(Megaseconds*1000000+Seconds)+Microseconds div 1000) rem Interval),
     MS2 = case MS < 1000 of
         true -> MS + Interval;
         false -> MS
