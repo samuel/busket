@@ -150,7 +150,7 @@ rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
         CurrentStep > LastStep ->
             StartTS = CurrentStep * Resolution,
             EndTS = StartTS + Limit,
-            Events = busket_store:get_events(CurrentStep * Resolution),
+            Events = [proplists:get_value(<<"name">>, E) || E <- busket_store:get_events(CurrentStep * Resolution)],
             rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution);
         true ->
             ok
