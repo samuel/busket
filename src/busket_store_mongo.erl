@@ -27,7 +27,7 @@ get_series(State, Event, StartTS, EndTS, Resolution) ->
     {State, Res}.
 
 get_events(State, Since) ->
-    Res = emongo:find(mongo_busket, "events", [{"last_update", [{gte, Since}]}]),
+    Res = emongo:find(mongo_busket, "events", [{"last_seen", [{gte, Since}]}]),
     {State, Res}.
 
 get_series_info(State, Resolution) ->

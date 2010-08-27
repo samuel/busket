@@ -161,11 +161,12 @@ rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
 
 rollup_aggregate([], _, _, _, _) ->
     ok;
-rollup_aggregate(Event, StartTS, EndTS, Resolution, LastResolution) ->
+rollup_aggregate([Event|Events], StartTS, EndTS, Resolution, LastResolution) ->
     Series = busket_store:get_series(Event, StartTS, EndTS, LastResolution),
     {Sum, Count, Min, Max} = aggregate(Series),
     Average = Sum / Count,
-    busket_store:record(EndTS, Event, Average, Min, Max, Resolution).
+    busket_store:record(EndTS, Event, Average, Min, Max, Resolution),
+    rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution).
 
 aggregate(Series) ->
     aggregate(Series, 0, 0, null, null).
