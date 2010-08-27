@@ -157,8 +157,6 @@ rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
         true ->
             ok
     end,
-    % TODO
-    % busket_store:last_
     rollup(Intervals, {Resolution, Limit}).
 
 rollup_aggregate([], _, _, _, _) ->
