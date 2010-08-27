@@ -46,33 +46,33 @@ init({_PidMaster, Module}) ->
     {ok, #state{module=Module, modstate=ModState}}.
 
 handle_call({record, Timestamp, Event, Avg, Min, Max, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
-    ModState = Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution),
-    {reply, ok, State#state{modstate=ModState}};
+    ModState2 = Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution),
+    {reply, ok, State#state{modstate=ModState2}};
 handle_call({get_series, Event, StartTS, EndTS, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState, Res} = Module:get_series(ModState, Event, StartTS, EndTS, Resolution),
-    {reply, Res, State#state{modstate=ModState}};
+    {ModState2, Res} = Module:get_series(ModState, Event, StartTS, EndTS, Resolution),
+    {reply, Res, State#state{modstate=ModState2}};
 handle_call({get_series_info, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState, Res} = Module:get_series_info(ModState, Resolution),
-    {reply, Res, State#state{modstate=ModState}};
+    {ModState2, Res} = Module:get_series_info(ModState, Resolution),
+    {reply, Res, State#state{modstate=ModState2}};
 handle_call({get_events, Since}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState, Res} = Module:get_events(ModState, Since),
-    {reply, Res, State#state{modstate=ModState}};
+    {ModState2, Res} = Module:get_events(ModState, Since),
+    {reply, Res, State#state{modstate=ModState2}};
 handle_call({get_last_update_time, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState, Res} = Module:get_last_update_time(ModState, Resolution),
-    {reply, Res, State#state{modstate=ModState}};
+    {ModState2, Res} = Module:get_last_update_time(ModState, Resolution),
+    {reply, Res, State#state{modstate=ModState2}};
 handle_call({set_last_update_time, Resolution, Timestamp}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState, Res} = Module:set_last_update_time(ModState, Resolution, Timestamp),
-    {reply, Res, State#state{modstate=ModState}};
+    {ModState2, Res} = Module:set_last_update_time(ModState, Resolution, Timestamp),
+    {reply, Res, State#state{modstate=ModState2}};
 handle_call({cleanup, Resolution, Limit}, _From, #state{module=Module, modstate=ModState} = State) ->
-    ModState = Module:cleanup(ModState, Resolution, Limit),
-    {reply, ok, State#state{modstate=ModState}};
+    ModState2 = Module:cleanup(ModState, Resolution, Limit),
+    {reply, ok, State#state{modstate=ModState2}};
 handle_call(Call, _From, State) ->
     io:format("UNANDLED handle_call ~p ~p~n", [Call, State]),
     {reply, ok, State}.
 
 handle_info({record, Timestamp, Event, Avg, Min, Max, Resolution}, #state{module=Module, modstate=ModState} = State) ->
-    ModState, Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution),
-    {noreply, State#state{modstate=ModState}};
+    ModState2 = Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution),
+    {noreply, State#state{modstate=ModState2}};
 handle_info(Info, State) ->
     io:format("UNHANDLED handle_info ~p ~p~n", [Info, State]),
     {noreply, State}.
