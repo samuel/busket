@@ -146,7 +146,7 @@ rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
     LastUpdate = busket_store:get_last_update_time(Resolution),
     LastStep = LastUpdate div Resolution,
     Now = get_unix_timestamp(),
-    CurrentStep = Now div Resolution,
+    CurrentStep = Now div Resolution - 1,
     if 
         CurrentStep > LastStep ->
             StartTS = CurrentStep * Resolution,
