@@ -23,7 +23,7 @@ record(State, Timestamp, Event, Avg, Min, Max, Resolution) ->
 
 get_series(State, Event, StartTS, EndTS, Resolution) ->
     CollectionName = collection_name(Resolution),
-    Res = emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lt, EndTS}]}], [{orderby, {"ts", asc}}]),
+    Res = emongo:find(mongo_busket, CollectionName, [{"event", Event}, {"ts", [{gte, StartTS}, {lt, EndTS}]}], [{orderby, [{"ts", asc}]}]),
     {State, Res}.
 
 get_events(State, Since) ->

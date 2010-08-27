@@ -145,13 +145,15 @@ rollup([], _) ->
 rollup([{Resolution, Limit}|Intervals], {LastResolution, _}) ->
     LastUpdate = busket_store:get_last_update_time(Resolution),
     LastStep = LastUpdate div Resolution,
-    CurrentStep = get_unix_timestamp() div Resolution,
+    Now = get_unix_timestamp(),
+    CurrentStep = Now div Resolution,
     if 
         CurrentStep > LastStep ->
             StartTS = CurrentStep * Resolution,
             EndTS = StartTS + Limit,
             Events = [proplists:get_value(<<"name">>, E) || E <- busket_store:get_events(CurrentStep * Resolution)],
-            rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution);
+            rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution),
+            busket_store:set_last_update_time(Resolution, Now);
         true ->
             ok
     end,
