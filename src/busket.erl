@@ -164,8 +164,12 @@ rollup_aggregate([], _, _, _, _) ->
 rollup_aggregate([Event|Events], StartTS, EndTS, Resolution, LastResolution) ->
     Series = busket_store:get_series(Event, StartTS, EndTS, LastResolution),
     {Sum, Count, Min, Max} = aggregate(Series),
-    Average = if Count == 0 -> 0; true -> Sum / Count end,
-    busket_store:record(EndTS, Event, Average, Min, Max, Resolution),
+    if
+        Count > 0 ->
+            busket_store:record(EndTS, Event, Sum / Count, Min, Max, Resolution);
+        true ->
+            ok
+    end,
     rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution).
 
 aggregate(Series) ->
