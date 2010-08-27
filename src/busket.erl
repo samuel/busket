@@ -40,7 +40,7 @@ init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
     {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
-    {ok, _} = timer:apply_interval(element(1, lists:nth(2, ?INTERVALS)), ?MODULE, rollup, []),
+    {ok, _} = timer:apply_interval(element(1, lists:nth(2, ?INTERVALS))*1000, ?MODULE, rollup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {ok, #state{
             last_ts = erlang:now(),
