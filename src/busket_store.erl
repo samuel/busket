@@ -61,8 +61,8 @@ handle_call({get_last_update_time, Resolution}, _From, #state{module=Module, mod
     {ModState2, Res} = Module:get_last_update_time(ModState, Resolution),
     {reply, Res, State#state{modstate=ModState2}};
 handle_call({set_last_update_time, Resolution, Timestamp}, _From, #state{module=Module, modstate=ModState} = State) ->
-    {ModState2, Res} = Module:set_last_update_time(ModState, Resolution, Timestamp),
-    {reply, Res, State#state{modstate=ModState2}};
+    ModState2 = Module:set_last_update_time(ModState, Resolution, Timestamp),
+    {reply, ok, State#state{modstate=ModState2}};
 handle_call({cleanup, Resolution, Limit}, _From, #state{module=Module, modstate=ModState} = State) ->
     ModState2 = Module:cleanup(ModState, Resolution, Limit),
     {reply, ok, State#state{modstate=ModState2}};
