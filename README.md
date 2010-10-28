@@ -26,3 +26,36 @@ Configuration
 -------------
 
 The configuration is stored in busket/rel/busket/etc/app.config and vm.args
+
+UDP Packet Format
+-----------------
+
+A single packet can contain any number of events in the following format
+concatenated together.
+
+    <type : 8-bit byte><value : 64-bit big-endian float><namelength : 8-bit byte><name : char * namelength>
+
+Python Client
+-------------
+
+    import socket
+    import struct
+
+    class BusketTime(object):
+        def __init__(self, host="127.0.0.1", port=5252):
+            self.host = host
+            self.port = port
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        def record(self, events):
+            data = "".join(struct.pack(">cdB", x[2], x[1], len(x[0])) + x[0] for x in events)
+            self.sock.sendto(data, 0, (self.host, self.port))
+
+        def gauge(self, event, value):
+            self.record([(event, value, "g")])
+
+        def absolute(self, event, value):
+            self.record([(event, value, "a")])
+
+        def counter(self, event, value):
+            self.record([(event, value, "c")])
