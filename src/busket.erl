@@ -32,7 +32,7 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
-    Intervals = application:get_env(busket, intervals),
+    {ok, Intervals} = application:get_env(busket, intervals),
     {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
     {ok, _} = timer:apply_interval(element(1, lists:nth(2, Intervals))*1000, ?MODULE, rollup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
@@ -124,7 +124,7 @@ aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count}, _Interval, _LastValue) ->
     {Sum/Count, Min, Max, Sum}.
 
 cleanup() ->
-    Intervals = application:get_env(busket, intervals),
+    {ok, Intervals} = application:get_env(busket, intervals),
     cleanup(Intervals).
 cleanup([]) ->
     ok;
@@ -133,7 +133,7 @@ cleanup([{Resolution, Limit}|Intervals]) ->
     cleanup(Intervals).
 
 rollup() ->
-    [{Resolution, Limit}|Intervals] = application:get_env(busket, intervals),
+    {ok, [{Resolution, Limit}|Intervals]} = application:get_env(busket, intervals),
     rollup(Intervals, {Resolution, Limit}).
 rollup([], _) ->
     ok;
