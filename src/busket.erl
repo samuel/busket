@@ -15,13 +15,6 @@
 -define(GAUGE_TYPE, 103).
 -define(CLEANUP_INTERVAL, 30*60*1000). % ms
 -define(DEFAULT_INTERVAL, 60000). % ms
--define(INTERVALS, [
-    {60, 1440},      % Every minute for 24 hours
-    {5*60, 576},     % Every 5 minutes for 48 hours
-    {30*60, 432},    % Every 30 minutes for 9 days
-    {60*60, 1080},   % Every 1 hours for 45 days
-    {24*60*60, 450}  % Every day for 450 days
-]).
 
 -record(state, {last_ts, events, last_values, store}).
 
@@ -39,8 +32,9 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
+    Intervals = application:get_env(busket, intervals),
     {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
-    {ok, _} = timer:apply_interval(element(1, lists:nth(2, ?INTERVALS))*1000, ?MODULE, rollup, []),
+    {ok, _} = timer:apply_interval(element(1, lists:nth(2, Intervals))*1000, ?MODULE, rollup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {ok, #state{
             last_ts = erlang:now(),
@@ -130,7 +124,8 @@ aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count}, _Interval, _LastValue) ->
     {Sum/Count, Min, Max, Sum}.
 
 cleanup() ->
-    cleanup(?INTERVALS).
+    Intervals = application:get_env(busket, intervals),
+    cleanup(Intervals).
 cleanup([]) ->
     ok;
 cleanup([{Resolution, Limit}|Intervals]) ->
@@ -138,7 +133,7 @@ cleanup([{Resolution, Limit}|Intervals]) ->
     cleanup(Intervals).
 
 rollup() ->
-    [{Resolution, Limit}|Intervals] = ?INTERVALS,
+    [{Resolution, Limit}|Intervals] = application:get_env(busket, intervals),
     rollup(Intervals, {Resolution, Limit}).
 rollup([], _) ->
     ok;
