@@ -1,7 +1,7 @@
 {application, busket,
  [
   {description, "Service monitoring"},
-  {vsn, "1"},
+  {vsn, "1.1"},
   {modules, [
              busket_app,
              busket_sup,
