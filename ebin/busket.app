@@ -1,6 +1,6 @@
 {application, busket,
  [
-  {description, "Service monitoring"},
+  {description, "Time-service service"},
   {vsn, "1.1"},
   {modules, [
              busket_app,
