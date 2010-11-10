@@ -4,13 +4,14 @@ APP := busket
 .PHONY: deps
 
 all: deps
+	@./rebar get-deps
 	@./rebar compile
 
 deps:
 	@./rebar get-deps
 
 clean:
-	@./rebar clean
+	@./rebar clean || true
 
 distclean: clean
 	@./rebar delete-deps
