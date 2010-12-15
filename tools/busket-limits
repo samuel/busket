@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+"""
+limits collection
+    event: event name.. can be a regular expression
+    min:
+    max:
+    unknown_time: number of seconds of not seeing the event to consider it an error
+    states:
+        <event>:
+            ok: true/false
+            last_check:
+            history: [
+                ts:
+                message:
+            ]
+"""
+
+import pymongo
+import re
+import sys
+import time
+
+class BusketLimits(object):
+    def __init__(self, mongodb_host, mongodb_port=27017):
+        self.mongodb_host = mongodb_host
+        self.mongodb_port = mongodb_port
+
+    def check(self):
+        limits = self.get_limits()
+        events = dict((x['name'], x) for x in self.get_events())
+        now = events['busket.rate']['last_seen']
+        for lim in limits:
+            if 'states' not in lim:
+                lim['states'] = {}
+
+            event_name = lim['event']
+            if hasattr(event_name, 'match'):
+                matches = lambda name:name.match(event_name)
+            else:
+                matches = lambda name:name == event_name
+
+            for name, ev in events.items():
+                if not matches(name):
+                    continue
+
+                alert = self.check_limits(lim, ev)
+                state = lim['states'].setdefault(ev['name'], {"ok": True, "last_check": now, "history": []})
+                state['last_check'] = now
+                ok = not alert
+
+                if state['ok'] != ok:
+                    self.alert(name, ok, alert)
+                    state['ok'] = ok
+                    state['history'].append(dict(
+                        ts = now,
+                        message = alert,
+                    ))
+            self.db.limits.save(lim)
+
+    def alert(self, event, ok, message):
+        print event, ok, message
+
+    def check_limits(self, limits, event):
+        last_seen_dt = time.time() - event['last_seen']
+        if last_seen_dt >= 65:
+            if limits.get('unknown_time') is not None and last_seen_dt > limits['unknown_time']:
+                return "unknown for %d seconds" % last_seen_dt
+        elif limits.get('min') is not None and event['last_value'] < limits['min']:
+            return "value too low (%.3f < %.3f)" % (event['last_value'], limits['min'])
+        elif limits.get('max') is not None and event['last_value'] > limits['max']:
+            return "value too high (%.3f > %.3f)" % (event['last_value'], limits['max'])
+
+    def get_limits(self):
+        return self.db.limits.find()
+
+    def get_events(self):
+        return self.db.events.find()
+
+    @property
+    def connection(self):
+        if not hasattr(self, '_connection'):
+            self._connection = pymongo.Connection(self.mongodb_host, self.mongodb_port)
+        return self._connection
+
+    @property
+    def db(self):
+        return self.connection.busket
+
+def main():
+    mongodb_host = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+    BusketLimits(mongodb_host).check()
+
+if __name__ == "__main__":
+    main()
