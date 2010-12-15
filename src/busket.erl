@@ -16,7 +16,7 @@
 -define(CLEANUP_INTERVAL, 30*60*1000). % ms
 -define(DEFAULT_INTERVAL, 60000). % ms
 
--record(state, {last_ts, events, last_values, store}).
+-record(state, {last_ts, events, message_count, last_values, store}).
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, {self()}, []).
@@ -39,7 +39,8 @@ init({_PidMaster}) ->
     {ok, #state{
             last_ts = erlang:now(),
             events = dict:new(),
-            last_values = dict:new()
+            last_values = dict:new(),
+            message_count = 0
         }}.
 
 handle_call(Call, _From, State) ->
@@ -50,7 +51,12 @@ handle_info(collection_timer, State) ->
     NextTS = erlang:now(),
     Interval = timer:now_diff(NextTS, State#state.last_ts) / 1000000,
     {NewState1, _, _} = dict:fold(fun process_events/3, {State, Interval, NextTS}, State#state.events),
-    NewState2 = NewState1#state{events=dict:new(), last_ts=NextTS},
+
+    % Record the number of messages busket is handling per second
+    MessageCountAvg = State#state.message_count / Interval,
+    busket_store:record(get_unix_timestamp(NextTS), "busket.count", MessageCountAvg, MessageCountAvg, MessageCountAvg, erlang:round(?DEFAULT_INTERVAL/1000)),
+
+    NewState2 = NewState1#state{events=dict:new(), message_count=0, last_ts=NextTS},
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {noreply, NewState2};
 % handle_info(aggregate_timer, State) ->
@@ -76,7 +82,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 record_events([], State) ->
     State;
-record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
     {Sum, Min, Max, Count} = case dict:find({Name, ?GAUGE_TYPE}, Events) of
         {ok, {OldSum, OldMin, OldMax, OldCount}} ->
             {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), OldCount+1};
@@ -84,15 +90,15 @@ record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events} = State) 
             {Value, Value, Value, 1}
     end,
     NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count}, Events),
-    NewState = State#state{events=NewEvents},
+    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
     record_events(Rest, NewState);
-record_events([{?COUNTER_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+record_events([{?COUNTER_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
     NewEvents = dict:store({Name, ?COUNTER_TYPE}, Value, Events),
-    NewState = State#state{events=NewEvents},
+    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
     record_events(Rest, NewState);
-record_events([{?ABSOLUTE_TYPE, Name, Value}|Rest], #state{events=Events} = State) ->
+record_events([{?ABSOLUTE_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
     NewEvents = dict:update_counter({Name, ?ABSOLUTE_TYPE}, Value, Events),
-    NewState = State#state{events=NewEvents},
+    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
     record_events(Rest, NewState).
 
 process_events({Name, EventType}, Counters, {State, Interval, TS}) ->
