@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_call/3, handle_info/2, handle_cast/2]).
 %% public
--export([record/6, get_series/4, get_series_info/1, get_events/1,
+-export([record/7, get_series/4, get_series_info/1, get_events/1,
     get_last_update_time/1, set_last_update_time/2, cleanup/2]).
 
 -record(state, {module, modstate}).
@@ -19,8 +19,8 @@ start_link(StoreModule) ->
 start(StoreModule) ->
     gen_server:start({local, ?MODULE}, ?MODULE, {self(), StoreModule}, []).
 
-record(Timestamp, Event, Avg, Min, Max, Resolution) ->
-	gen_server:call(?MODULE, {record, Timestamp, Event, Avg, Min, Max, Resolution}).
+record(Timestamp, Event, Avg, Min, Max, Resolution, MainInterval) ->
+	gen_server:call(?MODULE, {record, Timestamp, Event, Avg, Min, Max, Resolution, MainInterval}).
 
 get_series(Event, StartTS, EndTS, Resolution) ->
 	gen_server:call(?MODULE, {get_series, Event, StartTS, EndTS, Resolution}).
@@ -45,8 +45,8 @@ init({_PidMaster, Module}) ->
     ModState = Module:init(),
     {ok, #state{module=Module, modstate=ModState}}.
 
-handle_call({record, Timestamp, Event, Avg, Min, Max, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
-    ModState2 = Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution),
+handle_call({record, Timestamp, Event, Avg, Min, Max, Resolution, MainInterval}, _From, #state{module=Module, modstate=ModState} = State) ->
+    ModState2 = Module:record(ModState, Timestamp, Event, Avg, Min, Max, Resolution, MainInterval),
     {reply, ok, State#state{modstate=ModState2}};
 handle_call({get_series, Event, StartTS, EndTS, Resolution}, _From, #state{module=Module, modstate=ModState} = State) ->
     {ModState2, Res} = Module:get_series(ModState, Event, StartTS, EndTS, Resolution),

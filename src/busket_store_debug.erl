@@ -1,7 +1,7 @@
 -module(busket_store_debug).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
--export([init/0, record/7, get_series/5, get_events/2, get_last_update_time/2, cleanup/3]).
+-export([init/0, record/8, get_series/5, get_events/2, get_last_update_time/2, cleanup/3]).
 
 -record(event, {ts, name, avg, min, max, resolution}).
 
@@ -9,7 +9,7 @@ init() ->
     % io:format("[store_debug:init]~n"),
     [].
 
-record(State, Timestamp, Event, Avg, Min, Max, Resolution) ->
+record(State, Timestamp, Event, Avg, Min, Max, Resolution, _MainInterval) ->
     % io:format("[stor_debuge:record] ts=~p event=~p avg=~p min=~p max=~p resolution=~p~n", [Timestamp, Event, Avg, Min, Max, Resolution]),
     [#event{ts=Timestamp, name=Event, avg=Avg, min=Min, max=Max, resolution=Resolution}|State].
 
