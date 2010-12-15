@@ -54,7 +54,7 @@ handle_info(collection_timer, State) ->
 
     % Record the number of messages busket is handling per second
     MessageCountAvg = State#state.message_count / Interval,
-    busket_store:record(get_unix_timestamp(NextTS), "busket.count", MessageCountAvg, MessageCountAvg, MessageCountAvg, erlang:round(?DEFAULT_INTERVAL/1000)),
+    busket_store:record(get_unix_timestamp(NextTS), "busket.rate", MessageCountAvg, MessageCountAvg, MessageCountAvg, erlang:round(?DEFAULT_INTERVAL/1000)),
 
     NewState2 = NewState1#state{events=dict:new(), message_count=0, last_ts=NextTS},
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
