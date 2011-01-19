@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -f /etc/default/busket ] ; then
+	. /etc/default/busket
+fi
+
 RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
 
 RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
