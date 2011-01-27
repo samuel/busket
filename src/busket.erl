@@ -179,21 +179,28 @@ rollup_aggregate([], _, _, _, _) ->
     ok;
 rollup_aggregate([Event|Events], StartTS, EndTS, Resolution, LastResolution) ->
     Series = busket_store:get_series(Event, StartTS, EndTS, LastResolution),
-    {Sum, Count, Min, Max} = aggregate(Series),
+    {Sum, Count, Min, Max, Variance} = aggregate(Series),
     if
         Count > 0 ->
-            busket_store:record(EndTS, Event, Sum / Count, Min, Max, nil, Resolution, false);
+            busket_store:record(EndTS, Event, Sum / Count, Min, Max, Variance, Resolution, false);
         true ->
             ok
     end,
     rollup_aggregate(Events, StartTS, EndTS, Resolution, LastResolution).
 
 aggregate(Series) ->
-    aggregate(Series, 0, 0, null, null).
-aggregate([], Sum, Count, Min, Max) ->
-    {Sum, Count, Min, Max};
-aggregate([Event|Series], Sum, Count, Min, Max) ->
-    Sum2 = Sum + proplists:get_value(<<"avg">>, Event),
+    aggregate(Series, 0, 0, null, null, null, null).
+aggregate([], Sum, Count, Min, Max, _M, S) ->
+    Variance = if
+        Count > 1 ->
+            S / Count;
+        true ->
+            0
+    end,
+    {Sum, Count, Min, Max, Variance};
+aggregate([Event|Series], Sum, Count, Min, Max, M, S) ->
+    Avg = proplists:get_value(<<"avg">>, Event),
+    Sum2 = Sum + Avg,
     Min2 = erlang:min(Min, proplists:get_value(<<"min">>, Event)),
     OldMax = proplists:get_value(<<"max">>, Event),
     Max2 = if
@@ -203,7 +210,15 @@ aggregate([Event|Series], Sum, Count, Min, Max) ->
             erlang:min(Max, proplists:get_value(<<"max">>, Event))
     end,
     Count2 = Count + 1,
-    aggregate(Series, Sum2, Count2, Min2, Max2).
+    {NewM, NewS} = if
+        Count2 == 1 ->
+            {Avg, 0};
+        true ->
+            M2 = M + (Avg - M) / Count2,
+            S2 = S + (Avg - M) * (Avg - M2),
+            {M2, S2}
+    end,
+    aggregate(Series, Sum2, Count2, Min2, Max2, NewM, NewS).
 
 time_to_next_interval(Interval) ->
     {Megaseconds, Seconds, Microseconds} = erlang:now(),
