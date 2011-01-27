@@ -1,17 +1,17 @@
 -module(busket_store_debug).
 -author('Samuel Stauffer <samuel@descolada.com>').
 
--export([init/0, record/8, get_series/5, get_events/2, get_last_update_time/2, cleanup/3]).
+-export([init/0, record/9, get_series/5, get_events/2, get_last_update_time/2, cleanup/3]).
 
--record(event, {ts, name, avg, min, max, resolution}).
+-record(event, {ts, name, avg, min, max, variance, resolution}).
 
 init() ->
     % io:format("[store_debug:init]~n"),
     [].
 
-record(State, Timestamp, Event, Avg, Min, Max, Resolution, _MainInterval) ->
-    % io:format("[stor_debuge:record] ts=~p event=~p avg=~p min=~p max=~p resolution=~p~n", [Timestamp, Event, Avg, Min, Max, Resolution]),
-    [#event{ts=Timestamp, name=Event, avg=Avg, min=Min, max=Max, resolution=Resolution}|State].
+record(State, Timestamp, Event, Avg, Min, Max, Variance, Resolution, _MainInterval) ->
+    % io:format("[stor_debuge:record] ts=~p event=~p avg=~p min=~p max=~p variance=~p resolution=~p~n", [Timestamp, Event, Avg, Min, Max, Variance, Resolution]),
+    [#event{ts=Timestamp, name=Event, avg=Avg, min=Min, max=Max, variance=Variance, resolution=Resolution}|State].
 
 get_series(State, Event, StartTS, EndTS, Resolution) ->
     % io:format("[store_debug:get_series] event=~p startts=~p endts=~p resolution=~p~n", [Event, StartTS, EndTS, Resolution]),
@@ -20,7 +20,7 @@ get_series(State, Event, StartTS, EndTS, Resolution) ->
 
 get_series([], _, _, _, _, Series) ->
     Series;
-get_series([#event{name=Event, ts=Timestamp, resolution=Resolution, avg=Avg, min=Min, max=Max}|State], Event, StartTS, EndTS, Resolution, Series) ->
+get_series([#event{name=Event, ts=Timestamp, resolution=Resolution, avg=Avg, min=Min, max=Max, variance=Variance}|State], Event, StartTS, EndTS, Resolution, Series) ->
     Series2 = if
         (Timestamp >= StartTS) and (Timestamp < EndTS) ->
             [[
@@ -28,7 +28,8 @@ get_series([#event{name=Event, ts=Timestamp, resolution=Resolution, avg=Avg, min
                 {<<"event">>, Event},
                 {<<"avg">>, Avg},
                 {<<"min">>, Min},
-                {<<"max">>, Max}
+                {<<"max">>, Max},
+                {<<"variance">>, Variance}
             ]|Series];
         true ->
             Series

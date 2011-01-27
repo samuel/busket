@@ -54,8 +54,12 @@ handle_info(collection_timer, State) ->
 
     % Record the number of messages busket is handling per second
     MessageCountAvg = State#state.message_count / Interval,
-    busket_store:record(get_unix_timestamp(NextTS), <<"busket.rate">>, MessageCountAvg, MessageCountAvg, MessageCountAvg, erlang:round(?DEFAULT_INTERVAL/1000), true),
-    busket_store:record(get_unix_timestamp(NextTS), <<"busket.unique_events">>, EventCount, EventCount, EventCount, erlang:round(?DEFAULT_INTERVAL/1000), true),
+    busket_store:record(get_unix_timestamp(NextTS), <<"busket.rate">>,
+        MessageCountAvg, MessageCountAvg, MessageCountAvg, nil,
+        erlang:round(?DEFAULT_INTERVAL/1000), true),
+    busket_store:record(get_unix_timestamp(NextTS), <<"busket.unique_events">>,
+        EventCount, EventCount, EventCount, nil,
+        erlang:round(?DEFAULT_INTERVAL/1000), true),
 
     NewState2 = NewState1#state{events=dict:new(), message_count=0, last_ts=NextTS},
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
@@ -84,13 +88,16 @@ code_change(_OldVsn, State, _Extra) ->
 record_events([], State) ->
     State;
 record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
-    {Sum, Min, Max, Count} = case dict:find({Name, ?GAUGE_TYPE}, Events) of
-        {ok, {OldSum, OldMin, OldMax, OldCount}} ->
-            {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), OldCount+1};
+    {Sum, Min, Max, Count, M, S} = case dict:find({Name, ?GAUGE_TYPE}, Events) of
+        {ok, {OldSum, OldMin, OldMax, OldCount, LastM, LastS}} ->
+            NewCount = OldCount+1,
+            NewM = LastM + (Value - LastM) / NewCount,
+            NewS = LastS + (Value - LastM) * (Value - NewM),
+            {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), NewCount, NewM, NewS};
         error ->
-            {Value, Value, Value, 1}
+            {Value, Value, Value, 1, Value, 0}
     end,
-    NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count}, Events),
+    NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count, M, S}, Events),
     NewState = State#state{events=NewEvents, message_count=MessageCount+1},
     record_events(Rest, NewState);
 record_events([{?COUNTER_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
@@ -109,26 +116,33 @@ process_events({Name, EventType}, Counters, {State, Interval, TS, Count}) ->
         error ->
             nil
     end,
-    {Avg, Min, Max, Value} = aggregate_events(EventType, Counters, Interval, LastValue),
+    {Avg, Min, Max, Value, Variance} = aggregate_events(EventType, Counters, Interval, LastValue),
     NewState = State#state{last_values=dict:store({Name, EventType}, Value, State#state.last_values)},
     case Avg of
         nil ->
             ok;
         _ ->
-            busket_store:record(get_unix_timestamp(TS), Name, Avg, Min, Max, erlang:round(?DEFAULT_INTERVAL/1000), true)
+            busket_store:record(get_unix_timestamp(TS), Name, Avg, Min, Max,
+                Variance, erlang:round(?DEFAULT_INTERVAL/1000), true)
     end,
     {NewState, Interval, TS, Count+1}.
 
 aggregate_events(?ABSOLUTE_TYPE, Sum, Interval, _LastValue) ->
     Avg = Sum/Interval,
-    {Avg, Avg, Avg, Sum};
+    {Avg, Avg, Avg, Sum, nil};
 aggregate_events(?COUNTER_TYPE, Value, _Interval, nil) ->
-    {nil, nil, nil, Value};
+    {nil, nil, nil, Value, nil};
 aggregate_events(?COUNTER_TYPE, Value, Interval, LastValue) ->
     Avg = (Value-LastValue)/Interval,
-    {Avg, Avg, Avg, Value};
-aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count}, _Interval, _LastValue) ->
-    {Sum/Count, Min, Max, Sum}.
+    {Avg, Avg, Avg, Value, nil};
+aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count, _M, S}, _Interval, _LastValue) ->
+    Variance = if
+        Count > 1 ->
+            S / Count;
+        true ->
+            0
+    end,
+    {Sum/Count, Min, Max, Sum, Variance}.
 
 cleanup() ->
     {ok, Intervals} = application:get_env(busket, intervals),
@@ -168,7 +182,7 @@ rollup_aggregate([Event|Events], StartTS, EndTS, Resolution, LastResolution) ->
     {Sum, Count, Min, Max} = aggregate(Series),
     if
         Count > 0 ->
-            busket_store:record(EndTS, Event, Sum / Count, Min, Max, Resolution, false);
+            busket_store:record(EndTS, Event, Sum / Count, Min, Max, nil, Resolution, false);
         true ->
             ok
     end,
