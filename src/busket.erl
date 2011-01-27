@@ -138,7 +138,7 @@ aggregate_events(?COUNTER_TYPE, Value, Interval, LastValue) ->
 aggregate_events(?GAUGE_TYPE, {Sum, Min, Max, Count, _M, S}, _Interval, _LastValue) ->
     Variance = if
         Count > 1 ->
-            S / Count;
+            S / (Count - 1);
         true ->
             0
     end,
@@ -193,7 +193,7 @@ aggregate(Series) ->
 aggregate([], Sum, Count, Min, Max, _M, S) ->
     Variance = if
         Count > 1 ->
-            S / Count;
+            S / (Count - 1);
         true ->
             0
     end,
