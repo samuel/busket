@@ -81,11 +81,12 @@ parse_packet(Packet) ->
     parse_packet(Packet, []).
 parse_packet(<<>>, Events) ->
     Events;
-parse_packet(<<Type:8, Value:64/big-signed-float, NameLen:8, NameAndRest/binary>> = _Packet, Events) ->
-    {Name, Rest} = split_binary(NameAndRest, NameLen),
+parse_packet(<<Value:64/big-signed-float, KeyLength:16/big-unsigned-integer, KeyAndRest/binary>> = _Packet, Events) ->
+    {Key, Rest} = split_binary(KeyAndRest, KeyLength),
     % Maintain order of events
     Events2 = parse_packet(Rest, Events),
-    [{Type, Name, Value}|Events2];
+    [Category|KeyList] = binary:split(Key, [<<0>>], [global]),
+    [{Category, KeyList, Value}|Events2];
 parse_packet(_, Events) ->
     % TODO: Log the invalid packet
     Events.

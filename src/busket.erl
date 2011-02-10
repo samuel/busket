@@ -32,9 +32,9 @@ record(Events) ->
 init({_PidMaster}) ->
 	process_flag(trap_exit, true),
     timer:start(),
-    {ok, Intervals} = application:get_env(busket, intervals),
-    {ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
-    {ok, _} = timer:apply_interval(element(1, lists:nth(2, Intervals))*1000, ?MODULE, rollup, []),
+    %{ok, Intervals} = application:get_env(busket, intervals),
+    %{ok, _} = timer:apply_interval(?CLEANUP_INTERVAL, ?MODULE, cleanup, []),
+    %{ok, _} = timer:apply_interval(element(1, lists:nth(2, Intervals))*1000, ?MODULE, rollup, []),
     timer:send_after(time_to_next_interval(?DEFAULT_INTERVAL), collection_timer),
     {ok, #state{
             last_ts = erlang:now(),
@@ -85,29 +85,41 @@ code_change(_OldVsn, State, _Extra) ->
 
 %%%
 
+binary_join([], _) ->
+    <<>>;
+binary_join([Head|BinaryList], Separator) ->
+    list_to_binary([Head, [[Separator, X] || X <- BinaryList]]).
+
+%% [<<"com">>, <<"amazon">>, <<"music">>] -> [<<"com">>, <<"com.amazon">>, <<"com.amazon.music">>]
+dotify(Parts) ->
+    dotify(Parts, ".").
+dotify(Parts, Separator) ->
+    dotify(lists:reverse(Parts), [], Separator).
+dotify([], Dots, _) ->
+    Dots;
+dotify([_|Rest]=Parts, Dots, Separator) ->
+    Dots2 = [binary_join(lists:reverse(Parts), Separator)|Dots],
+    dotify(Rest, Dots2, Separator).
+
 record_events([], State) ->
     State;
-record_events([{?GAUGE_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
-    {Sum, Min, Max, Count, M, S} = case dict:find({Name, ?GAUGE_TYPE}, Events) of
-        {ok, {OldSum, OldMin, OldMax, OldCount, LastM, LastS}} ->
-            NewCount = OldCount+1,
-            NewM = LastM + (Value - LastM) / NewCount,
-            NewS = LastS + (Value - LastM) * (Value - NewM),
-            {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), NewCount, NewM, NewS};
-        error ->
-            {Value, Value, Value, 1, Value, 0}
-    end,
-    NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count, M, S}, Events),
-    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
-    record_events(Rest, NewState);
-record_events([{?COUNTER_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
-    NewEvents = dict:store({Name, ?COUNTER_TYPE}, Value, Events),
-    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
-    record_events(Rest, NewState);
-record_events([{?ABSOLUTE_TYPE, Name, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
-    NewEvents = dict:update_counter({Name, ?ABSOLUTE_TYPE}, Value, Events),
-    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
-    record_events(Rest, NewState).
+record_events([{Category, KeyList, Value}|Rest], #state{events=Events, message_count=MessageCount} = State) ->
+    pass.
+
+%record_events(Category, KeyList, Events) ->
+%    
+%    {Sum, Min, Max, Count, M, S} = case dict:find(Name, Events) of
+%        {ok, {OldSum, OldMin, OldMax, OldCount, LastM, LastS}} ->
+%            NewCount = OldCount+1,
+%            NewM = LastM + (Value - LastM) / NewCount,
+%            NewS = LastS + (Value - LastM) * (Value - NewM),
+%            {OldSum+Value, erlang:min(OldMin, Value), erlang:max(OldMax, Value), NewCount, NewM, NewS};
+%        error ->
+%            {Value, Value, Value, 1, Value, 0}
+%    end,
+%    NewEvents = dict:store({Name, ?GAUGE_TYPE}, {Sum, Min, Max, Count, M, S}, Events),
+%    NewState = State#state{events=NewEvents, message_count=MessageCount+1},
+%    record_events(Rest, NewState).
 
 process_events({Name, EventType}, Counters, {State, Interval, TS, Count}) ->
     LastValue = case dict:find({Name, EventType}, State#state.last_values) of

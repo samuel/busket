@@ -1,5 +1,5 @@
-Busket - Time Series Service
-============================
+Busket - Event Aggregation Service
+==================================
 
 Busket is essentially an RRD like service. You send it events over UDP, and
 it calculates rates for different intervals (e.g. every minute, every hour).
@@ -33,7 +33,7 @@ UDP Packet Format
 A single packet can contain any number of events in the following format
 concatenated together.
 
-    <type : 8-bit byte><value : 64-bit big-endian float><namelength : 8-bit byte><name : char * namelength>
+    <value : 64-bit big-endian float><category+key length : 16-bit unsigned><category : char *>\x00<key1 : char *>\x00<key2 : char*>...
 
 Python Client
 -------------

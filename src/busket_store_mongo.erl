@@ -2,26 +2,40 @@
 -author('Samuel Stauffer <samuel@descolada.com>').
 
 -export([
-    init/0, record/9, get_series/5, get_series_info/2,
+    init/0, record/10, get_series/5, get_series_info/2,
     get_last_update_time/2, set_last_update_time/3, get_events/2, cleanup/3]).
 
 init() ->
     ok.
 
-record(State, Timestamp, Event, Avg, Min, Max, Variance, Resolution, MainInterval) ->
+record(State, Timestamp, Event, Sum, Count, Min, Max, Variance, Resolution, MainInterval) ->
     CollectionName = collection_name(Resolution),
-    emongo:insert(mongo_busket, CollectionName, [
-        {"ts", Timestamp},
-        {"event", Event},
-        {"avg", Avg},
-        {"min", Min},
-        {"max", Max},
-        {"variance", if Variance == nil -> undefined; true -> Variance end}
-    ]),
+    emongo:update(mongo_busket, CollectionName, [
+            {"ts", Timestamp},
+            {"event", Event}
+        ], [
+            "$inc", [
+                {"sum", Sum},
+                {"count", Count},
+                {"min", Min},
+                {"max", Max},
+                {"variance", if Variance == nil -> 0; true -> Variance end}
+            ]
+        ], true),
     % io:format("MONGO ~p ~p ~p ~p ~p ~p ~p~n", [Timestamp, Event, Avg, Min, Max, Variance, Resolution]),
     if
         MainInterval == true ->
-            emongo:update(mongo_busket, "events", [{"name", Event}], [{"$set", [{"last_seen", Timestamp}, {"last_value", Avg}]}], true);
+            emongo:update(mongo_busket, "events",
+                [{"name", Event}],
+                [
+                    {"$set", [
+                        {"last_seen", Timestamp}
+                    ]},
+                    {"$add", [
+                        {"sum", Sum},
+                        {"count", Count}
+                    ]}
+                ], true);
         true ->
             ok
     end,        
